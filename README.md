@@ -5,7 +5,7 @@ A browser-based tool that helps an operations manager **plan, generate, validate
 Built for the Datastraw Tech Internship assessment. Stack: Python 3 · FastAPI · plain HTML/JS (no build step).
 Built with AI assistance (Claude). I own the design decisions described below and can walk through every file.
 
-- **Live app:** `<add deployed URL>`
+- **Live app:** https://roster-desk-gb6b.onrender.com
 - **Demo video:** `<add link>`
 
 ## What it does
