@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roster Desk</title>
+<style>
+  :root {
+    --bg: #f4f1ea; --panel: #fffdf8; --ink: #1d2a2f; --muted: #6b7478; --line: #ddd6c6;
+    --ok: #1f7a5c; --ok-bg: #dff1e8; --gap: #c0392b; --gap-bg: #fbe0dc;
+    --warn: #b7791f; --warn-bg: #fbefd2; --off: #e6e2d8; --hol: #dfe3f4; --hol-ink: #3b4a8c;
+    --accent: #14505c; --cover: #0f766e;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 var(--sans); }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 14px 20px;
+           background: var(--accent); color: #fff; }
+  header h1 { margin: 0; font-size: 18px; letter-spacing: .02em; }
+  header h1 small { font-weight: 400; opacity: .7; margin-left: 8px; font-size: 12px; }
+  .month { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .month button { background: rgba(255,255,255,.15); color: #fff; border: 0; border-radius: 6px;
+                  width: 28px; height: 28px; cursor: pointer; font-size: 16px; }
+  .spacer { flex: 1; }
+  .chip { padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+  .chip.good { background: var(--ok-bg); color: var(--ok); }
+  .chip.bad { background: var(--gap-bg); color: var(--gap); }
+  .chip.soft { background: var(--warn-bg); color: var(--warn); }
+  header .btn { background: rgba(255,255,255,.15); color: #fff; border: 0; }
+  button, select, input { font: inherit; color: inherit; }
+  .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 7px; padding: 6px 12px;
+         cursor: pointer; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.danger { color: var(--gap); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; padding: 16px 20px; }
+  @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  .panel > h2 { margin: 0; padding: 10px 14px; font-size: 13px; text-transform: uppercase;
+                letter-spacing: .06em; color: var(--muted); border-bottom: 1px solid var(--line); }
+  .pad { padding: 12px 14px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px 14px;
+          border-bottom: 1px solid var(--line); }
+  .tab { padding: 5px 12px; border-radius: 99px; border: 1px solid var(--line); background: transparent;
+         cursor: pointer; }
+  .tab.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .tabs select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px; background: #fff;
+                 max-width: 240px; }
+  .scroll { overflow: auto; }
+  table.grid { border-collapse: separate; border-spacing: 0; font-size: 12px; }
+  .grid th, .grid td { padding: 0; text-align: center; }
+  .grid thead th { position: sticky; top: 0; background: var(--panel); z-index: 2; font-weight: 600;
+                   border-bottom: 1px solid var(--line); height: 38px; min-width: 27px; }
+  .grid thead th small { display: block; font-weight: 400; color: var(--muted); font-size: 10px; }
+  .grid th.we, .grid td.we { background-image: linear-gradient(rgba(0,0,0,.03), rgba(0,0,0,.03)); }
+  .grid th.hol { color: var(--hol-ink); background: var(--hol); }
+  .grid th.bad { box-shadow: inset 0 -3px 0 var(--gap); }
+  .grid td.name, .grid th.name { position: sticky; left: 0; background: var(--panel); z-index: 1;
+        text-align: left; padding: 0 10px; min-width: 190px; max-width: 190px; white-space: nowrap;
+        overflow: hidden; text-overflow: ellipsis; border-right: 1px solid var(--line); }
+  .grid thead th.name { z-index: 3; }
+  .grid td.name small { color: var(--muted); margin-left: 6px; }
+  .grid tr.section td { background: #efe9da; font-weight: 700; text-align: left; padding: 4px 10px;
+                        font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .grid tr.section td.name { position: sticky; }
+  .cell { width: 27px; height: 26px; font-family: var(--mono); font-size: 11px; border-bottom: 1px solid #efe9da;
+          cursor: default; position: relative; }
+  .cell.W { color: #b8bdb9; }
+  .cell.O { background: var(--off); color: #8a8574; }
+  .cell.L { background: var(--warn-bg); color: var(--warn); font-weight: 700; }
+  .cell.C { background: #f6e3b5; color: #8a5a00; font-weight: 700; }
+  .cell.H { background: var(--hol); color: var(--hol-ink); }
+  .cell.cov::after { content: ""; position: absolute; right: 2px; top: 2px; width: 7px; height: 7px;
+                     border-radius: 50%; background: var(--cover); }
+  .cell.here { box-shadow: inset 0 0 0 2px var(--cover); }
+  .cell.ed { cursor: pointer; }
+  .cell.ed:hover { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .cell.ok { background: var(--ok-bg); color: var(--ok); }
+  .cell.gap { background: var(--gap-bg); color: var(--gap); font-weight: 700; }
+  .cell.closed { color: #c9c4b4; }
+  .cell.extra { background: #e7f3ef; color: var(--cover); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); padding: 8px 14px;
+            border-top: 1px solid var(--line); }
+  .legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -3px;
+              margin-right: 4px; border: 1px solid var(--line); }
+  .issue { padding: 8px 12px; border-left: 4px solid var(--gap); background: var(--gap-bg); border-radius: 0 6px 6px 0;
+           margin: 8px 0; font-size: 13px; cursor: pointer; }
+  .issue.soft { border-color: var(--warn); background: var(--warn-bg); }
+  .issue b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; opacity: .75; }
+  .empty { color: var(--ok); font-weight: 600; padding: 8px 0; }
+  details > summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+  .seg { display: flex; gap: 4px; margin-bottom: 10px; }
+  .seg button { flex: 1; padding: 6px; border: 1px solid var(--line); background: transparent; border-radius: 7px; cursor: pointer; }
+  .seg button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 3px; }
+  .form select, .form input { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .impact { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
+  .impact h3 { margin: 0 0 4px; font-size: 14px; }
+  .impact .sum { color: var(--muted); margin-bottom: 8px; }
+  .it { border-left: 4px solid var(--ok); background: #f1f8f4; padding: 7px 10px; margin: 6px 0; border-radius: 0 6px 6px 0; font-size: 13px; }
+  .it.COVERED_BY_BACKUP { border-color: var(--cover); background: #e7f3ef; }
+  .it.UNCOVERED { border-color: var(--gap); background: var(--gap-bg); }
+  .it ul { margin: 6px 0 0; padding-left: 18px; color: var(--ink); }
+  .it li.blocked { color: var(--muted); }
+  .note { color: var(--muted); font-size: 12px; margin: 4px 0; }
+  .leaves li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0;
+               border-bottom: 1px solid #efe9da; font-size: 13px; }
+  .leaves { list-style: none; margin: 0; padding: 0; }
+  #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff;
+           padding: 10px 16px; border-radius: 8px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 9; max-width: 90vw; }
+  #toast.show { opacity: 1; }
+  #toast.err { background: var(--gap); }
+  /* employee calendar */
+  .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; padding: 14px; }
+  .cal .dh { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); text-align: center; }
+  .cal .d { min-height: 74px; border: 1px solid var(--line); border-radius: 8px; padding: 6px; background: #fff; font-size: 12px; }
+  .cal .d.O { background: var(--off); } .cal .d.L { background: var(--warn-bg); } .cal .d.C { background: #f6e3b5; }
+  .cal .d.H { background: var(--hol); }
+  .cal .d b { font-size: 13px; } .cal .d span { display: block; color: var(--muted); }
+  .cal .d em { display: block; font-style: normal; color: var(--cover); font-weight: 600; margin-top: 2px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 24px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .facts div small { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  /* setup */
+  table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .t th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
+          padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  .t td { padding: 6px 8px; border-bottom: 1px solid #efe9da; vertical-align: top; }
+  .t select, .t input { padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  .t input[type=number] { width: 56px; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; background: #efe9da; border-radius: 99px; padding: 1px 4px 1px 9px;
+         margin: 2px 4px 2px 0; font-size: 12px; }
+  .tag.bk { background: #e7f3ef; }
+  .tag button { border: 0; background: transparent; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1; }
+  .addbox { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; padding: 14px; }
+  .addbox form { border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: #fff; }
+  .addbox h4 { margin: 0 0 4px; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Roster Desk <small>plan · validate · change</small></h1>
+  <div class="month"><button id="prev" aria-label="Previous month">‹</button><span id="monthLabel"></span><button id="next" aria-label="Next month">›</button></div>
+  <span id="healthChip" class="chip"></span>
+  <span class="spacer"></span>
+  <button class="btn" id="regen" title="Discard manual edits for this month and plan again">Regenerate month</button>
+  <a class="btn" id="csv" style="text-decoration:none">Export CSV</a>
+  <button class="btn" id="reset" title="Restore the original sample data">Reset demo data</button>
+</header>
+
+<div class="layout">
+  <main class="panel" id="main"></main>
+  <aside style="display:flex;flex-direction:column;gap:16px">
+    <section class="panel"><h2>Issues <span id="issueCount"></span></h2><div class="pad" id="issues"></div></section>
+    <section class="panel"><h2>Change desk</h2><div class="pad" id="desk"></div></section>
+  </aside>
+</div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+const DOW = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const CAL = {"365":"365 days","NO_HOLIDAYS":"Every day except holidays","NO_SUN_HOLIDAYS":"Mon–Sat except holidays"};
+const LABEL = {W:"Working",O:"Weekly off",L:"On leave",C:"Comp-off",H:"Public holiday"};
+const ST = {W:"WORK",O:"WEEKLY_OFF",L:"LEAVE",C:"COMP_OFF",H:"HOLIDAY"};
+
+let S = null;                        // server state for the month on screen
+let Y = 2026, M = 11;
+let V = {tab: "company", id: null};  // current view
+let deskTab = "leave";
+let pending = null;                  // {kind, body, impact}
+let prefill = {};
+
+const $ = (s) => document.querySelector(s);
+const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function toast(msg, err) {
+  const t = $("#toast"); t.textContent = msg; t.className = "show" + (err ? " err" : "");
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.className = "", err ? 6000 : 2800);
+}
+
+async function api(path, method = "GET", body) {
+  const res = await fetch(path, {method, headers: body ? {"content-type": "application/json"} : {},
+                                 body: body ? JSON.stringify(body) : undefined});
+  let data = null; try { data = await res.json(); } catch (e) {}
+  if (!res.ok) { throw new Error(data && data.detail ? (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail)) : res.statusText); }
+  return data;
+}
+const guard = (fn) => async (...a) => { try { await fn(...a); } catch (e) { toast(e.message, true); } };
+
+async function load() {
+  S = await api(`/api/state?year=${Y}&month=${M}`);
+  render();
+}
+
+// ---------- lookups ----------
+const emp = (id) => S.employees.find((e) => e.id === id);
+const proc = (id) => S.processes.find((p) => p.id === id);
+const brand = (id) => S.brands.find((b) => b.id === id);
+const pod = (id) => S.pods.find((p) => p.id === id);
+const plabel = (p) => `${brand(p.brand_id).name} / ${p.name}`;
+const dayIdx = (iso) => S.days.findIndex((d) => d.date === iso);
+const dlabel = (iso) => { const d = new Date(iso + "T00:00:00"); return `${DOW[(d.getDay() + 6) % 7]} ${d.getDate()} ${d.toLocaleString("en", {month: "short"})}`; };
+
+// ---------- header ----------
+function renderHeader() {
+  $("#monthLabel").textContent = new Date(Y, M - 1, 1).toLocaleString("en", {month: "long", year: "numeric"});
+  const mand = S.conflicts.filter((c) => c.severity === "MANDATORY").length;
+  const soft = S.conflicts.length - mand;
+  const chip = $("#healthChip");
+  chip.className = "chip " + (mand ? "bad" : "good");
+  chip.textContent = mand ? `${mand} mandatory issue${mand > 1 ? "s" : ""}` : "All coverage rules met" + (soft ? ` · ${soft} soft note${soft > 1 ? "s" : ""}` : "");
+  $("#csv").href = `/api/roster.csv?year=${Y}&month=${M}`;
+}
+
+// ---------- grid helpers ----------
+const badDays = () => { const s = new Set(); S.conflicts.forEach((c) => { if (c.severity === "MANDATORY" && c.day) s.add(c.day); }); return s; };
+
+function head(first = "") {
+  const bad = badDays();
+  return `<thead><tr><th class="name">${first}</th>` + S.days.map((d) => {
+    const cls = [d.dow >= 5 ? "we" : "", d.holiday ? "hol" : "", bad.has(d.date) ? "bad" : ""].join(" ");
+    return `<th class="${cls}" title="${esc(d.holiday || "")}">${d.day}<small>${DOW[d.dow][0]}</small></th>`;
+  }).join("") + "</tr></thead>";
+}
+const wecls = (i) => (S.days[i].dow >= 5 ? " we" : "");
+
+function empRow(e, opts = {}) {
+  const st = S.status[e.id], cv = S.covers[e.id] || {};
+  const cells = [...st].map((c, i) => {
+    const covers = cv[i] || [];
+    const here = opts.brandId != null && covers.some((pid) => proc(pid).brand_id === opts.brandId);
+    const hereP = opts.processId != null && covers.includes(opts.processId);
+    const tip = [`${e.name} · ${dlabel(S.days[i].date)} · ${LABEL[c]}`].concat(covers.map((pid) => "Covering " + plabel(proc(pid)))).join("\n");
+    const editable = c === "W" || c === "O";
+    return `<td class="cell ${c}${covers.length ? " cov" : ""}${(here || hereP) ? " here" : ""}${editable ? " ed" : ""}${wecls(i)}" title="${esc(tip)}" data-emp="${e.id}" data-day="${i}">${c === "W" ? "·" : c}</td>`;
+  }).join("");
+  const tag = e.is_lead ? "<small>lead</small>" : (opts.tag ? `<small>${esc(opts.tag)}</small>` : "");
+  return `<tr><td class="name" title="${esc(e.name)}">${esc(e.name)}${tag}</td>${cells}</tr>`;
+}
+
+function covRow(p, showBrand = true) {
+  const rows = S.coverage[p.id];
+  const cells = rows.map(([need, have], i) => {
+    const who = (S.workers[p.id][i] || []).map((id) => emp(id).name).join(", ") || "nobody";
+    const tip = need === 0 ? `${plabel(p)} · ${dlabel(S.days[i].date)} · closed` : `${plabel(p)} · ${dlabel(S.days[i].date)}\nneeds ${need}, has ${have}: ${who}`;
+    let cls = "closed", txt = "–";
+    if (need > 0) { cls = have >= need ? (have > need ? "extra" : "ok") : "gap"; txt = have >= need ? have : `${have}/${need}`; }
+    return `<td class="cell ${cls}${wecls(i)}" title="${esc(tip)}">${txt}</td>`;
+  }).join("");
+  const nm = showBrand ? `${esc(brand(p.brand_id).name)} <small>${esc(p.name)} · ${p.calendar === "365" ? "365" : p.calendar === "NO_SUN_HOLIDAYS" ? "Mon–Sat" : "no hol."}</small>` : `${esc(p.name)} <small>${CAL[p.calendar]}</small>`;
+  return `<tr><td class="name">${nm}</td>${cells}</tr>`;
+}
+const section = (t) => `<tr class="section"><td class="name">${esc(t)}</td><td colspan="${S.days.length}"></td></tr>`;
+const legend = `<div class="legend"><span><i style="background:#fff"></i>· working</span><span><i style="background:var(--off)"></i>O weekly off</span><span><i style="background:var(--warn-bg)"></i>L leave</span><span><i style="background:#f6e3b5"></i>C comp-off</span><span><i style="background:var(--hol)"></i>H holiday</span><span><i style="background:#fff;box-shadow:inset 0 0 0 5px var(--cover)"></i>● also covering another process</span><span><i style="background:var(--ok-bg)"></i>coverage met</span><span><i style="background:var(--gap-bg)"></i>gap (have/need)</span></div>`;
+const gridWrap = (inner) => `<div class="scroll"><table class="grid">${inner}</table></div>${legend}`;
+
+// ---------- views ----------
+function viewCompany() {
+  const gaps = S.days.map((_, i) => S.processes.filter((p) => { const [n, h] = S.coverage[p.id][i]; return n > 0 && h < n; }).length);
+  let h = head("Company-wide") + "<tbody>";
+  h += `<tr><td class="name"><b>Processes with a gap</b></td>` + gaps.map((g, i) => `<td class="cell ${g ? "gap" : "ok"}${wecls(i)}">${g || "0"}</td>`).join("") + "</tr>";
+  S.pods.forEach((p) => {
+    h += section(p.name);
+    S.employees.filter((e) => e.pod_id === p.id).sort((a, b) => b.is_lead - a.is_lead).forEach((e) => h += empRow(e));
+  });
+  return gridWrap(h + "</tbody>");
+}
+function viewPod(id) {
+  const p = pod(id); let h = head(p.name) + "<tbody>";
+  h += section("People");
+  S.employees.filter((e) => e.pod_id === id).sort((a, b) => b.is_lead - a.is_lead).forEach((e) => h += empRow(e));
+  S.brands.filter((b) => b.pod_id === id).forEach((b) => {
+    h += section(b.name + " – coverage");
+    S.processes.filter((x) => x.brand_id === b.id).forEach((x) => h += covRow(x, false));
+  });
+  return gridWrap(h + "</tbody>");
+}
+function viewBrand(id) {
+  const b = brand(id), procs = S.processes.filter((p) => p.brand_id === id);
+  const ids = new Set(procs.map((p) => p.id));
+  let h = head(b.name) + "<tbody>" + section("Daily coverage");
+  procs.forEach((p) => h += covRow(p, false));
+  const people = new Map();
+  procs.forEach((p) => { p.owners.forEach((o) => people.set(o, "assigned")); });
+  Object.entries(S.covers).forEach(([e, byDay]) => { if (!people.has(+e) && Object.values(byDay).some((l) => l.some((pid) => ids.has(pid)))) people.set(+e, "cover"); });
+  h += section("People (ring = covering this brand)");
+  [...people.entries()].forEach(([e, why]) => h += empRow(emp(e), {brandId: id, tag: why === "cover" ? "cover" : procs.filter((p) => p.owners.includes(e)).map((p) => p.name).join("+")}));
+  return gridWrap(h + "</tbody>");
+}
+function viewProcess(id) {
+  const p = proc(id); let h = head(plabel(p)) + "<tbody>" + section("Daily coverage");
+  h += covRow(p, false);
+  const cv = new Set(); Object.entries(S.covers).forEach(([e, byDay]) => { if (Object.values(byDay).some((l) => l.includes(id))) cv.add(+e); });
+  h += section("Owners");
+  p.owners.forEach((o) => h += empRow(emp(o), {processId: id}));
+  h += section("Assigned backups");
+  p.backups.forEach((o) => h += empRow(emp(o), {processId: id}));
+  const extra = [...cv].filter((e) => !p.backups.includes(e) && !p.owners.includes(e));
+  if (extra.length) { h += section("Other people who covered it"); extra.forEach((o) => h += empRow(emp(o), {processId: id})); }
+  const rule = `<div class="pad note">${CAL[p.calendar]} · minimum staff ${p.min_staff}` +
+    (Object.keys(p.overrides).length ? " · overrides: " + Object.entries(p.overrides).map(([d, n]) => `${DOW[d]} ${n}`).join(", ") : "") + "</div>";
+  return rule + gridWrap(h + "</tbody>");
+}
+function viewEmployee(id) {
+  const e = emp(id), st = S.status[id], cv = S.covers[id] || {};
+  const owned = S.processes.filter((p) => p.owners.includes(id)), back = S.processes.filter((p) => p.backups.includes(id));
+  const counts = {}; [...st].forEach((c) => counts[c] = (counts[c] || 0) + 1);
+  const myLeaves = S.leaves.filter((l) => l.employee_id === id);
+  let out = `<div class="facts">
+    <div><small>Pod</small>${esc(pod(e.pod_id).name)}${e.is_lead ? " (lead)" : ""}</div>
+    <div><small>Works</small>${counts.W || 0} days</div><div><small>Weekly off</small>${counts.O || 0} (${e.off_weekday != null ? DOW[e.off_weekday] + "s" : "n/a"})</div>
+    <div><small>Leave / comp-off</small>${(counts.L || 0) + (counts.C || 0)}</div><div><small>Holidays</small>${counts.H || 0}</div>
+    <div><small>Preferred off</small>${e.pref != null ? DOW[e.pref] : "none"}</div>
+    <div><small>Owns</small>${owned.map((p) => esc(plabel(p))).join(", ") || "–"}</div>
+    <div><small>Backup for</small>${back.length} process${back.length === 1 ? "" : "es"}</div></div>`;
+  const first = S.days[0].dow;
+  let cal = '<div class="cal">' + DOW.map((d) => `<div class="dh">${d}</div>`).join("") + "<div></div>".repeat(first);
+  S.days.forEach((d, i) => {
+    const c = st[i], cov = (cv[i] || []).map((pid) => `<em>↳ covers ${esc(plabel(proc(pid)))}</em>`).join("");
+    cal += `<div class="d ${c}"><b>${d.day}</b> ${d.holiday ? "· " + esc(d.holiday) : ""}<span>${LABEL[c]}</span>${cov}</div>`;
+  });
+  cal += "</div>";
+  const lv = myLeaves.length ? `<div class="pad"><b>Approved leaves</b><ul class="leaves">${myLeaves.map(leaveLi).join("")}</ul></div>` : "";
+  return out + cal + lv;
+}
+function leaveLi(l) {
+  return `<li><span>${esc(emp(l.employee_id).name)} · ${dlabel(l.start)}${l.end !== l.start ? " – " + dlabel(l.end) : ""} · ${l.type === "COMP_OFF" ? "comp-off" : "leave"}${l.note ? " · " + esc(l.note) : ""}</span><button class="btn danger" data-act="cancel-leave" data-i="${l.index}">Cancel…</button></li>`;
+}
+
+// ---------- setup ----------
+function viewSetup() {
+  const podOpts = S.pods.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("");
+  const brandOpts = S.brands.map((b) => `<option value="${b.id}">${esc(b.name)}</option>`).join("");
+  const empOpts = (sel) => S.employees.map((e) => `<option value="${e.id}">${esc(e.name)}</option>`).join("");
+  const calOpts = (cur) => Object.entries(CAL).map(([k, v]) => `<option value="${k}" ${k === cur ? "selected" : ""}>${v}</option>`).join("");
+  const rows = S.processes.map((p) => {
+    const ov = Object.entries(p.overrides).map(([d, n]) => `${DOW[d]}:${n}`).join(", ");
+    const tags = (ids, cls, role) => ids.map((e) => `<span class="tag ${cls}">${esc(emp(e).name)}<button title="Remove" data-act="rm-assign" data-e="${e}" data-p="${p.id}">×</button></span>`).join("");
+    return `<tr><td>${esc(brand(p.brand_id).name)}</td><td>${esc(p.name)}</td>
+      <td><select data-act="proc-cal" data-p="${p.id}">${calOpts(p.calendar)}</select></td>
+      <td><input type="number" min="1" value="${p.min_staff}" data-act="proc-min" data-p="${p.id}"></td>
+      <td><input type="text" size="9" value="${esc(ov)}" placeholder="Sat:2, Sun:2" data-act="proc-ov" data-p="${p.id}"></td>
+      <td>${tags(p.owners, "", "PRIMARY")}${tags(p.backups, "bk", "BACKUP")}
+        <select data-act="add-assign" data-p="${p.id}"><option value="">+ assign…</option>${S.employees.map((e) => `<option value="${e.id}:PRIMARY">${esc(e.name)} – owner</option><option value="${e.id}:BACKUP">${esc(e.name)} – backup</option>`).join("")}</select></td></tr>`;
+  }).join("");
+  const hol = S.holidays.map((h) => `<span class="tag">${esc(h.day)} ${esc(h.name)}<button data-act="rm-hol" data-d="${h.day}">×</button></span>`).join("");
+  return `<div class="addbox">
+    <form data-form="employee"><h4>Add employee</h4><div class="form"><label>Name</label><input name="name" required><label>Pod</label><select name="pod_id">${podOpts}</select><label>Preferred weekly off</label><select name="pref"><option value="">No preference</option>${DOW.map((d, i) => `<option value="${i}">${d}</option>`).join("")}</select></div><div class="actions"><button class="btn primary">Add</button></div></form>
+    <form data-form="brand"><h4>Add brand</h4><div class="form"><label>Name</label><input name="name" required><label>Pod</label><select name="pod_id">${podOpts}</select></div><div class="actions"><button class="btn primary">Add</button></div></form>
+    <form data-form="process"><h4>Add process</h4><div class="form"><label>Brand</label><select name="brand_id">${brandOpts}</select><label>Process name</label><input name="name" placeholder="CS, ACC, NDR…" required><label>Operating calendar</label><select name="calendar">${calOpts("NO_HOLIDAYS")}</select><label>Minimum staff</label><input name="min_staff" type="number" min="1" value="1"></div><div class="actions"><button class="btn primary">Add</button></div></form>
+    <form data-form="pod"><h4>Add pod</h4><div class="form"><label>Name</label><input name="name" required></div><div class="actions"><button class="btn primary">Add</button></div></form>
+    <form data-form="holiday"><h4>Add public holiday</h4><div class="form"><label>Date</label><input name="day" type="date" required><label>Name</label><input name="name" required></div><div class="actions"><button class="btn primary">Add</button></div></form>
+  </div>
+  <div class="pad note">Changing setup data rebuilds this month's roster from the new rules (manual edits for the month are replaced). Leave and day edits use the Change desk instead and never rebuild the month.</div>
+  <div class="pad"><b>Public holidays</b><div>${hol}</div></div>
+  <div class="scroll pad"><table class="t"><thead><tr><th>Brand</th><th>Process</th><th>Operating calendar</th><th>Min staff</th><th>Day overrides</th><th>Owners (grey) &amp; backups (green)</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// ---------- main render ----------
+function selectorFor(tab) {
+  if (tab === "pod") return S.pods.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("");
+  if (tab === "brand") return S.brands.map((b) => `<option value="${b.id}">${esc(b.name)} (${esc(pod(b.pod_id).name)})</option>`).join("");
+  if (tab === "process") return S.processes.map((p) => `<option value="${p.id}">${esc(plabel(p))}</option>`).join("");
+  if (tab === "employee") return S.employees.map((e) => `<option value="${e.id}">${esc(e.name)}</option>`).join("");
+  return "";
+}
+function renderMain() {
+  const tabs = [["company", "Company"], ["pod", "Pod"], ["brand", "Brand"], ["process", "Process"], ["employee", "Employee"], ["setup", "Setup"]];
+  if (!["company", "setup"].includes(V.tab)) {
+    const valid = {pod: S.pods, brand: S.brands, process: S.processes, employee: S.employees}[V.tab];
+    if (!valid.some((x) => x.id === V.id)) V.id = valid[0].id;
+  }
+  let h = '<div class="tabs">' + tabs.map(([k, l]) => `<button class="tab ${V.tab === k ? "on" : ""}" data-tab="${k}">${l}</button>`).join("");
+  if (!["company", "setup"].includes(V.tab)) h += `<select id="sel">${selectorFor(V.tab)}</select>`;
+  h += "</div>";
+  h += {company: viewCompany, pod: () => viewPod(V.id), brand: () => viewBrand(V.id), process: () => viewProcess(V.id), employee: () => viewEmployee(V.id), setup: viewSetup}[V.tab]();
+  $("#main").innerHTML = h;
+  const sel = $("#sel"); if (sel) sel.value = V.id;
+}
+
+function renderIssues() {
+  const mand = S.conflicts.filter((c) => c.severity === "MANDATORY"), soft = S.conflicts.filter((c) => c.severity !== "MANDATORY");
+  $("#issueCount").textContent = `· ${mand.length} mandatory, ${soft.length} soft`;
+  const one = (c, cls) => `<div class="issue ${cls}" data-pid="${c.process_id ?? ""}" data-eid="${(c.employee_ids || [])[0] ?? ""}"><b>${esc(c.code.replaceAll("_", " "))}</b>${esc(c.message)}</div>`;
+  $("#issues").innerHTML = (mand.length ? mand.map((c) => one(c, "")).join("") : '<div class="empty">✓ No mandatory issues. Every required process-day is covered.</div>') +
+    (soft.length ? `<details><summary>Soft notes (${soft.length}) – preferences and capacity</summary>${soft.map((c) => one(c, "soft")).join("")}</details>` : "");
+}
+
+// ---------- change desk ----------
+function impactHtml(imp) {
+  let h = `<div class="impact"><h3>${esc(imp.title)}</h3><div class="sum">${esc(imp.summary)}</div>`;
+  imp.notes.forEach((n) => h += `<div class="note">${esc(n)}</div>`);
+  imp.items.forEach((i) => {
+    h += `<div class="it ${i.status}">${esc(i.message)}`;
+    if (i.options.length) h += "<ul>" + i.options.map((o) => `<li class="${o.kind === "BLOCKED" ? "blocked" : ""}">${esc(o.text)}</li>`).join("") + "</ul>";
+    h += "</div>";
+  });
+  if (imp.introduced.length) h += `<div class="note"><b style="color:var(--gap)">New mandatory issues if you keep this change:</b></div>` + imp.introduced.map((c) => `<div class="issue"><b>${esc(c.code.replaceAll("_", " "))}</b>${esc(c.message)}</div>`).join("");
+  if (imp.cleared.length) h += `<div class="note" style="color:var(--ok)">Clears ${imp.cleared.length} existing issue(s).</div>`;
+  h += `<div class="actions"><button class="btn primary" data-act="apply">${imp.needs_decision || imp.introduced.length ? "Keep change anyway" : "Apply change"}</button><button class="btn" data-act="discard">Discard</button></div></div>`;
+  return h;
+}
+function renderDesk() {
+  const empOpts = S.employees.map((e) => `<option value="${e.id}" ${prefill.emp === e.id ? "selected" : ""}>${esc(e.name)}</option>`).join("");
+  const mid = `${Y}-${String(M).padStart(2, "0")}`;
+  const d0 = prefill.day || `${mid}-01`;
+  let h = `<div class="seg"><button class="${deskTab === "leave" ? "on" : ""}" data-desk="leave">Leave / comp-off</button><button class="${deskTab === "edit" ? "on" : ""}" data-desk="edit">Edit a day</button></div>`;
+  if (deskTab === "leave") {
+    h += `<form class="form" data-form="leave"><label>Employee</label><select name="employee_id">${empOpts}</select>
+      <div class="row2"><div><label>From</label><input type="date" name="start" value="${d0}" required></div><div><label>To</label><input type="date" name="end" value="${d0}" required></div></div>
+      <label>Type</label><select name="type"><option value="PLANNED">Planned leave</option><option value="COMP_OFF">Comp-off</option></select>
+      <div class="actions"><button class="btn primary">Preview impact</button></div></form>`;
+  } else {
+    h += `<form class="form" data-form="edit"><label>Employee</label><select name="employee_id">${empOpts}</select>
+      <label>Date</label><input type="date" name="day" value="${d0}" required>
+      <label>Set to</label><select name="status"><option value="WEEKLY_OFF" ${prefill.status === "WEEKLY_OFF" ? "selected" : ""}>Weekly off</option><option value="WORK" ${prefill.status === "WORK" ? "selected" : ""}>Working</option></select>
+      <div class="actions"><button class="btn primary">Preview impact</button></div>
+      <div class="note">Tip: click a "·" or "O" cell in any grid to fill this in.</div></form>`;
+  }
+  if (pending) h += impactHtml(pending.impact);
+  if (S.leaves.length) h += `<details style="margin-top:12px"><summary>Approved leaves (${S.leaves.length})</summary><ul class="leaves">${S.leaves.map(leaveLi).join("")}</ul></details>`;
+  $("#desk").innerHTML = h;
+}
+
+function render() { renderHeader(); renderMain(); renderIssues(); renderDesk(); }
+
+// ---------- events ----------
+document.addEventListener("click", guard(async (ev) => {
+  const t = ev.target.closest("[data-tab],[data-desk],[data-act],.cell.ed,.issue");
+  if (!t) return;
+  if (t.dataset.tab) { V = {tab: t.dataset.tab, id: null}; renderMain(); return; }
+  if (t.dataset.desk) { deskTab = t.dataset.desk; pending = null; renderDesk(); return; }
+  if (t.classList.contains("issue")) {
+    if (t.dataset.pid) { V = {tab: "process", id: +t.dataset.pid}; renderMain(); }
+    else if (t.dataset.eid) { V = {tab: "employee", id: +t.dataset.eid}; renderMain(); }
+    return;
+  }
+  if (t.classList.contains("cell")) {
+    const e = +t.dataset.emp, i = +t.dataset.day, c = S.status[e][i];
+    deskTab = "edit"; pending = null;
+    prefill = {emp: e, day: S.days[i].date, status: c === "W" ? "WEEKLY_OFF" : "WORK"};
+    renderDesk(); $("#desk").scrollIntoView({behavior: "smooth", block: "nearest"}); return;
+  }
+  const a = t.dataset.act;
+  if (a === "discard") { pending = null; renderDesk(); }
+  else if (a === "apply") {
+    const r = await api(`/api/${pending.kind}/apply`, "POST", pending.body);
+    toast("Change applied: " + r.summary); pending = null; await load();
+  } else if (a === "cancel-leave") {
+    const body = {leave_index: +t.dataset.i, year: Y, month: M};
+    const impact = await api("/api/leave/cancel/preview", "POST", body);
+    pending = {kind: "leave/cancel", body, impact}; renderDesk();
+  } else if (a === "rm-assign") {
+    await api(`/api/assignments?employee_id=${t.dataset.e}&process_id=${t.dataset.p}`, "DELETE"); toast("Assignment removed – month re-planned"); await load();
+  } else if (a === "rm-hol") {
+    await api(`/api/holidays/${t.dataset.d}`, "DELETE"); toast("Holiday removed – month re-planned"); await load();
+  }
+}));
+
+document.addEventListener("change", guard(async (ev) => {
+  const t = ev.target;
+  if (t.id === "sel") { V.id = +t.value; renderMain(); return; }
+  const a = t.dataset.act, p = +t.dataset.p;
+  if (a === "proc-cal") { await api(`/api/processes/${p}`, "PUT", {calendar: t.value}); }
+  else if (a === "proc-min") { await api(`/api/processes/${p}`, "PUT", {min_staff: +t.value}); }
+  else if (a === "proc-ov") {
+    const o = {}; t.value.split(",").map((s) => s.trim()).filter(Boolean).forEach((s) => { const [d, n] = s.split(":"); const i = DOW.findIndex((x) => x.toLowerCase() === d.trim().slice(0, 3).toLowerCase()); if (i < 0 || !(+n >= 1)) throw new Error(`Cannot read "${s}". Use e.g. Sat:2, Sun:2`); o[i] = +n; });
+    await api(`/api/processes/${p}`, "PUT", {min_staff_overrides: o});
+  } else if (a === "add-assign") {
+    if (!t.value) return; const [e, role] = t.value.split(":");
+    await api("/api/assignments", "POST", {employee_id: +e, process_id: p, role});
+  } else return;
+  toast("Saved – month re-planned from the new rules"); await load();
+}));
+
+document.addEventListener("submit", guard(async (ev) => {
+  const f = ev.target.closest("form[data-form]"); if (!f) return;
+  ev.preventDefault();
+  const k = f.dataset.form, d = Object.fromEntries(new FormData(f).entries());
+  if (k === "leave" || k === "edit") {
+    const body = k === "leave"
+      ? {employee_id: +d.employee_id, start: d.start, end: d.end, type: d.type, note: "", year: Y, month: M}
+      : {employee_id: +d.employee_id, day: d.day, status: d.status, year: Y, month: M};
+    prefill = {emp: body.employee_id, day: body.start || body.day, status: body.status};
+    const impact = await api(`/api/${k}/preview`, "POST", body);
+    pending = {kind: k, body, impact}; renderDesk(); return;
+  }
+  if (k === "employee") await api("/api/employees", "POST", {name: d.name, pod_id: +d.pod_id, preferred_off_weekday: d.pref === "" ? null : +d.pref});
+  if (k === "brand") await api("/api/brands", "POST", {name: d.name, pod_id: +d.pod_id});
+  if (k === "process") await api("/api/processes", "POST", {brand_id: +d.brand_id, name: d.name, calendar: d.calendar, min_staff: +d.min_staff});
+  if (k === "pod") await api("/api/pods", "POST", {name: d.name});
+  if (k === "holiday") await api("/api/holidays", "POST", {day: d.day, name: d.name});
+  toast("Added – month re-planned from the new data"); await load();
+}));
+
+$("#prev").onclick = guard(async () => { M--; if (M < 1) { M = 12; Y--; } pending = null; await load(); });
+$("#next").onclick = guard(async () => { M++; if (M > 12) { M = 1; Y++; } pending = null; await load(); });
+$("#regen").onclick = guard(async () => { if (!confirm("Discard manual edits for this month and plan it again?")) return; await api(`/api/regenerate?year=${Y}&month=${M}`, "POST"); pending = null; toast("Month planned again"); await load(); });
+$("#reset").onclick = guard(async () => { if (!confirm("Restore the original sample data? Your changes will be lost.")) return; await api("/api/reset", "POST"); pending = null; prefill = {}; toast("Demo data restored"); await load(); });
+
+guard(load)();
+</script>
+</body>
+</html>
