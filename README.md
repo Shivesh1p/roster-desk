@@ -6,7 +6,7 @@ Built for the Datastraw Tech Internship assessment. Stack: Python 3 Â· FastAPI Â
 Built with AI assistance (Claude). I own the design decisions described below and can walk through every file.
 
 - **Live app:** https://roster-desk-gb6b.onrender.com
-- **Demo video:** `<add link>`
+- **Demo video:** `https://youtu.be/trKO7XYTS-w
 
 ## What it does
 
